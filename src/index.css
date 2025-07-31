@@ -3,7 +3,6 @@
 @tailwind utilities;
 
 /* OceanVision AI Design System - Marine Conservation Theme 
-All colors MUST be HSL for perfect gradients and theming.
 */
 
 @layer base {

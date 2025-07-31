@@ -1,4 +1,4 @@
-// iNaturalist API utilities - completely free, no API key required!
+// iNaturalist API utilities
 
 export interface Observation {
   id: number;
