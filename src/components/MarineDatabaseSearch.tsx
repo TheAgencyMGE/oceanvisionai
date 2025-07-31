@@ -19,7 +19,8 @@ import {
   Star,
   Waves,
   Eye,
-  BookOpen
+  BookOpen,
+  Loader2
 } from "lucide-react";
 import { marineDatabase, type MarineSpeciesDetail } from "@/utils/marineDatabase";
 import { toast } from "sonner";
@@ -30,6 +31,14 @@ const MarineDatabaseSearch = () => {
   const [selectedSpecies, setSelectedSpecies] = useState<MarineSpeciesDetail | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
+  const [stats, setStats] = useState<{
+    totalSpecies: number;
+    conservationCounts: Record<string, number>;
+    habitatCounts: Record<string, number>;
+    averageLifespan: number;
+    lastUpdated: string;
+    sources: string[];
+  } | null>(null);
   const [filters, setFilters] = useState({
     habitat: "",
     conservationStatus: "",
@@ -40,8 +49,21 @@ const MarineDatabaseSearch = () => {
 
   // Initialize with random species
   useEffect(() => {
-    const randomSpecies = marineDatabase.getRandomSpecies(6);
-    setSearchResults(randomSpecies);
+    const loadInitialData = async () => {
+      try {
+        const [randomSpecies, databaseStats] = await Promise.all([
+          marineDatabase.getRandomSpecies(6),
+          marineDatabase.getStatistics()
+        ]);
+        setSearchResults(randomSpecies);
+        setStats(databaseStats);
+      } catch (error) {
+        console.error('Failed to load initial species data:', error);
+        toast.error('Failed to load species data');
+      }
+    };
+    
+    loadInitialData();
   }, []);
 
   const handleSearch = async (query: string) => {
@@ -55,10 +77,10 @@ const MarineDatabaseSearch = () => {
       
       if (!query.trim() && !hasActiveFilters()) {
         // No search query and no filters - show random species
-        results = marineDatabase.getRandomSpecies(6);
+        results = await marineDatabase.getRandomSpecies(6);
       } else if (hasActiveFilters()) {
         // Use advanced search with filters
-        results = marineDatabase.advancedSearch({
+        results = await marineDatabase.advancedSearch({
           name: query,
           habitat: filters.habitat,
           conservationStatus: filters.conservationStatus,
@@ -68,7 +90,7 @@ const MarineDatabaseSearch = () => {
         });
       } else {
         // Simple name search
-        results = marineDatabase.searchByName(query);
+        results = await marineDatabase.searchByName(query);
       }
       
       setSearchResults(results);
@@ -124,8 +146,6 @@ const MarineDatabaseSearch = () => {
     return `${size.length.min}-${size.length.max} ${size.length.unit}`;
   };
 
-  const stats = marineDatabase.getStatistics();
-
   return (
     <section id="marine-database" className="py-20 bg-gradient-to-b from-muted/20 to-background">
       <div className="container mx-auto px-4">
@@ -144,24 +164,31 @@ const MarineDatabaseSearch = () => {
           </p>
           
           {/* Database Stats */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-2xl mx-auto">
-            <div className="bg-gradient-to-br from-blue-500/10 to-blue-600/20 p-4 rounded-lg border border-blue-500/20">
-              <div className="text-2xl font-bold text-blue-600">{stats.totalSpecies}</div>
-              <div className="text-sm text-muted-foreground">Species</div>
+                    {/* Database Stats */}
+          {stats ? (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-2xl mx-auto">
+              <div className="bg-gradient-to-br from-blue-500/10 to-blue-600/20 p-4 rounded-lg border border-blue-500/20">
+                <div className="text-2xl font-bold text-blue-600">{stats.totalSpecies}</div>
+                <div className="text-sm text-muted-foreground">Species</div>
+              </div>
+              <div className="bg-gradient-to-br from-green-500/10 to-green-600/20 p-4 rounded-lg border border-green-500/20">
+                <div className="text-2xl font-bold text-green-600">{Object.keys(stats.habitatCounts).length}</div>
+                <div className="text-sm text-muted-foreground">Habitats</div>
+              </div>
+              <div className="bg-gradient-to-br from-purple-500/10 to-purple-600/20 p-4 rounded-lg border border-purple-500/20">
+                <div className="text-2xl font-bold text-purple-600">{Math.round(stats.averageLifespan)}</div>
+                <div className="text-sm text-muted-foreground">Avg Lifespan</div>
+              </div>
+              <div className="bg-gradient-to-br from-orange-500/10 to-orange-600/20 p-4 rounded-lg border border-orange-500/20">
+                <div className="text-2xl font-bold text-orange-600">{Object.keys(stats.conservationCounts).length}</div>
+                <div className="text-sm text-muted-foreground">Status Types</div>
+              </div>
             </div>
-            <div className="bg-gradient-to-br from-green-500/10 to-green-600/20 p-4 rounded-lg border border-green-500/20">
-              <div className="text-2xl font-bold text-green-600">{Object.keys(stats.habitatCounts).length}</div>
-              <div className="text-sm text-muted-foreground">Habitats</div>
+          ) : (
+            <div className="flex justify-center">
+              <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
             </div>
-            <div className="bg-gradient-to-br from-purple-500/10 to-purple-600/20 p-4 rounded-lg border border-purple-500/20">
-              <div className="text-2xl font-bold text-purple-600">{Math.round(stats.averageLifespan)}</div>
-              <div className="text-sm text-muted-foreground">Avg Lifespan</div>
-            </div>
-            <div className="bg-gradient-to-br from-orange-500/10 to-orange-600/20 p-4 rounded-lg border border-orange-500/20">
-              <div className="text-2xl font-bold text-orange-600">{Object.keys(stats.conservationCounts).length}</div>
-              <div className="text-sm text-muted-foreground">Categories</div>
-            </div>
-          </div>
+          )}
         </div>
 
         <div className="max-w-6xl mx-auto space-y-8">
